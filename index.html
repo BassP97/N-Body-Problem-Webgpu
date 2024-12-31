@@ -18,6 +18,14 @@
         aspect-ratio: 16/9;
         margin: 20px 0;
       }
+      .value-input {
+        width: 80px;
+        background: #333;
+        color: white;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 4px;
+      }
       .help-icon {
         color: #666;
         font-size: 0.8em;
@@ -77,7 +85,14 @@
             value="1000"
             id="planetCount"
           />
-          <span id="planetCountValue">1000</span>
+          <input
+            type="number"
+            class="value-input"
+            id="planetCountValue"
+            value="1000"
+            min="2"
+            max="100000"
+          />
         </label>
       </div>
       <div class="setting-group">
@@ -96,7 +111,15 @@
             value="0.001"
             id="gravity"
           />
-          <span id="gravityValue">0.001</span>
+          <input
+            type="number"
+            class="value-input"
+            id="gravityValue"
+            value="0.001"
+            min="0"
+            max="0.01"
+            step="0.0001"
+          />
         </label>
       </div>
       <div class="setting-group">
@@ -115,29 +138,43 @@
             value="0.001"
             id="timeStep"
           />
-          <span id="timeStepValue">0.001</span>
+          <input
+            type="number"
+            class="value-input"
+            id="timeStepValue"
+            value="0.001"
+            min="0.00001"
+            max="0.01"
+            step="0.0001"
+          />
         </label>
       </div>
     </div>
     <pre id="info"></pre>
     <script type="module" src="main.js"></script>
     <script>
-      const planetCountInput = document.getElementById("planetCount");
-      const planetCountDisplay = document.getElementById("planetCountValue");
-      const gravityInput = document.getElementById("gravity");
-      const gravityDisplay = document.getElementById("gravityValue");
-      const timeStepInput = document.getElementById("timeStep");
-      const timeStepDisplay = document.getElementById("timeStepValue");
+      const setupTwoWayBinding = (sliderId, valueId) => {
+        const slider = document.getElementById(sliderId);
+        const value = document.getElementById(valueId);
 
-      planetCountInput.addEventListener("input", (e) => {
-        planetCountDisplay.textContent = e.target.value;
-      });
-      gravityInput.addEventListener("input", (e) => {
-        gravityDisplay.textContent = e.target.value;
-      });
-      timeStepInput.addEventListener("input", (e) => {
-        timeStepDisplay.textContent = e.target.value;
-      });
+        slider.addEventListener("input", (e) => {
+          value.value = e.target.value;
+        });
+
+        value.addEventListener("input", (e) => {
+          let val = parseFloat(e.target.value);
+          const min = parseFloat(e.target.min);
+          const max = parseFloat(e.target.max);
+
+          val = Math.min(max, Math.max(min, val));
+          e.target.value = val;
+          slider.value = val;
+        });
+      };
+
+      setupTwoWayBinding("planetCount", "planetCountValue");
+      setupTwoWayBinding("gravity", "gravityValue");
+      setupTwoWayBinding("timeStep", "timeStepValue");
     </script>
   </body>
 </html>
