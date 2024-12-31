@@ -57,6 +57,18 @@
         flex-direction: column;
         gap: 8px;
       }
+      .preset-button {
+        padding: 8px 16px;
+        background: #444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .preset-button:hover {
+        background: #555;
+      }
       label {
         display: flex;
         align-items: center;
@@ -149,6 +161,24 @@
           />
         </label>
       </div>
+      <div class="setting-group">
+        <label>Presets:</label>
+        <div style="display: flex; gap: 10px;">
+          <button class="preset-button" id="5k-default">
+            5k planets
+            <br/>
+          </button>
+          <button class="preset-button" id="10k-default">
+            10k planets
+            <br/>
+          </button>
+          <button class="preset-button" id="25k-default">
+            25k planets
+            <br/>
+          </button>
+        </div>
+      </div>
+    </div>
     </div>
     <pre id="info"></pre>
     <script type="module" src="main.js"></script>
@@ -175,6 +205,20 @@
       setupTwoWayBinding("planetCount", "planetCountValue");
       setupTwoWayBinding("gravity", "gravityValue");
       setupTwoWayBinding("timeStep", "timeStepValue");
+
+      const setValues = (planetCount, gravity, timeStep) => {
+        document.getElementById('planetCount').value = planetCount;
+        document.getElementById('planetCountValue').value = planetCount;
+        document.getElementById('gravity').value = gravity;
+        document.getElementById('gravityValue').value = gravity;
+        document.getElementById('timeStep').value = timeStep;
+        document.getElementById('timeStepValue').value = timeStep;
+      };
+
+      document.getElementById('10k-default').onclick = () => setValues(10000, 0.001, 0.0005);
+      document.getElementById('5k-default').onclick = () => setValues(5000, 0.001, 0.001);
+      document.getElementById('25k-default').onclick = () => setValues(25000, 0.001, 0.00025);
+
     </script>
   </body>
 </html>

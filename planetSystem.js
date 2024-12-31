@@ -12,6 +12,7 @@ export class PlanetSystem {
     this.timeStep = document.getElementById("timeStep").value;
     this.numPlanets = document.getElementById("planetCount").value;
     this.bufferChanged = false;
+    this.blackHoles = [];
   }
 
   async init() {

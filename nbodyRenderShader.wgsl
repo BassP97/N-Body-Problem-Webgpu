@@ -26,8 +26,13 @@ struct VertexOutput {
   );
 
   let planet = planets[instanceIndex];
-  let size = max(10.0 / f32(arrayLength(&planets)), 0.0001); 
-  let pos = corners[vertexIndex] * size + planet.position;
+  let size = min(max(15.0 / f32(arrayLength(&planets)), 0.0005), 0.025); 
+
+  let aspectRatio = 16.0 / 9.0;
+  let correctedCorner = vec2f(corners[vertexIndex].x / aspectRatio, corners[vertexIndex].y);
+  let correctedPos = vec2f(planet.position.x / aspectRatio, planet.position.y);
+  
+  let pos = correctedCorner * size + correctedPos;
 
   var output: VertexOutput;
   output.position = vec4f(pos, 0.0, 1.0);
