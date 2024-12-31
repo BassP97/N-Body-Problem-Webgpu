@@ -26,7 +26,7 @@ struct VertexOutput {
   );
 
   let planet = planets[instanceIndex];
-  let size = 0.01;
+  let size = max(10.0 / f32(arrayLength(&planets)), 0.0001); 
   let pos = corners[vertexIndex] * size + planet.position;
 
   var output: VertexOutput;

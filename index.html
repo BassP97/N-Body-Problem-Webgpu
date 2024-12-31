@@ -18,6 +18,12 @@
         aspect-ratio: 16/9;
         margin: 20px 0;
       }
+      .help-icon {
+        color: #666;
+        font-size: 0.8em;
+        cursor: help;
+        margin-left: 4px;
+      }
       #canvas,
       #overlay {
         position: absolute;
@@ -59,13 +65,29 @@
       <div class="setting-group">
         <label>
           Number of Planets:
-          <input type="range" min="2" max="10000" value="10" id="planetCount" />
-          <span id="planetCountValue">10</span>
+          <span
+            class="help-icon"
+            title="Total number of planets to simulate. Higher numbers will impact performance."
+            >?</span
+          >
+          <input
+            type="range"
+            min="2"
+            max="100000"
+            value="1000"
+            id="planetCount"
+          />
+          <span id="planetCountValue">1000</span>
         </label>
       </div>
       <div class="setting-group">
         <label>
           Gravity Strength:
+          <span
+            class="help-icon"
+            title="Strength of gravitational force between planets. Higher values create stronger attraction between planets."
+            >?</span
+          >
           <input
             type="range"
             min="0"
@@ -80,15 +102,20 @@
       <div class="setting-group">
         <label>
           Time Step:
+          <span
+            class="help-icon"
+            title="Size of time steps in the simulation. Larger steps make the simulation run faster but less accurately."
+            >?</span
+          >
           <input
             type="range"
             min="0.00001"
             max="0.01"
             step="0.0001"
-            value="0.01"
+            value="0.001"
             id="timeStep"
           />
-          <span id="timeStepValue">0.01</span>
+          <span id="timeStepValue">0.001</span>
         </label>
       </div>
     </div>
