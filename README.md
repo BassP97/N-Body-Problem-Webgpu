@@ -8,5 +8,5 @@ If you just want to run it, clone the repo and start serving the site locally wi
 
 Todo:
 
-[ ] - Update force computation algorithm to use [barnes hut](https://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation)
-[ ] - Implement 3d simulation
+- [ ] Update force computation algorithm to use [barnes hut](https://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation)
+- [ ] Implement 3d simulation
