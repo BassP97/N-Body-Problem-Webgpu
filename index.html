@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>WebGPU</title>
+  </head>
+  <body>
+    <canvas width="2000" , height="1200"></canvas>
+    <script>
+      async function main() {
+        const adapter = await navigator.gpu?.requestAdapter();
+        const device = await adapter?.requestDevice();
+        if (!device) {
+          fail("need a browser that supports WebGPU");
+          return;
+        }
+        const canvas = document.querySelector("canvas");
+        const context = canvas.getContext("webgpu");
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        context.configure({
+          device,
+          format: presentationFormat,
+        });
+
+        const module = device.createShaderModule({
+          label: "nbody render shader",
+          code: `
+      struct PlanetData {
+        position: vec2f,
+        velocity: vec2f,
+        mass: f32,
+      }
+
+      @group(0) @binding(0) var<storage, read> planets: array<PlanetData>;
+      
+      struct VertexOutput {
+        @builtin(position) position: vec4f,
+        @location(0) uv: vec2f,
+        @location(1) mass: f32,
+      }
+
+      @vertex fn vs(
+        @builtin(vertex_index) vertexIndex: u32,
+        @builtin(instance_index) instanceIndex: u32,
+      ) -> VertexOutput {
+        let corners = array(
+            vec2f(-1.0, -1.0),  // Bottom left
+            vec2f( 1.0, -1.0),  // Bottom right
+            vec2f(-1.0,  1.0),  // Top left
+            vec2f( 1.0, -1.0),  // Bottom right
+            vec2f( 1.0,  1.0),  // Top right
+            vec2f(-1.0,  1.0),  // Top left
+        );
+        
+        let planet = planets[instanceIndex];
+        let size = 0.02;
+        let pos = corners[vertexIndex] * size + planet.position;
+        
+        var output: VertexOutput;
+        output.position = vec4f(pos, 0.0, 1.0);
+        output.uv = corners[vertexIndex];
+        output.mass = planet.mass;
+        return output;
+      }
+
+      @fragment fn fs(input: VertexOutput) -> @location(0) vec4f {
+        let dist = length(input.uv);
+        
+        // Discard pixels outside the circle
+        if (dist > 1.0) {
+          discard;
+        }
+        
+        // Color based on mass!
+        let color = vec3f(1.0, 0.7, 0.3); // Golden color
+        let intensity = 1.0 - dist; // Fade towards edges
+        
+        return vec4f(color * intensity, 1.0);
+      }
+              `,
+        });
+
+        const pipeline = device.createRenderPipeline({
+          label: "planet renderer",
+          layout: "auto",
+          vertex: {
+            module,
+            entryPoint: "vs",
+          },
+          fragment: {
+            module,
+            entryPoint: "fs",
+            targets: [{ format: presentationFormat }],
+          },
+        });
+
+        const renderPassDescriptor = {
+          label: "canvas renderPass",
+          colorAttachments: [
+            {
+              // view: <- to be filled out when we render
+              clearValue: [0.3, 0.3, 0.3, 1],
+              loadOp: "clear",
+              storeOp: "store",
+            },
+          ],
+        };
+
+        const planetBufferSize = 4 * 2 + 4 * 2 + 4;
+        const positionOffset = 0;
+        const velocityOffset = 2;
+        const massOffset = 4;
+
+        const numPlanets = 100;
+        const planetValues = new Float32Array(planetBufferSize / 4);
+
+        const buffer = device.createBuffer({
+          label: "planet buffer",
+          size: planetBufferSize * numPlanets,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE,
+        });
+
+        for (let i = 0; i < numPlanets; i++) {
+          const position = new Float32Array(2);
+          position[0] = Math.random() * 2 - 1;
+          position[1] = Math.random() * 2 - 1;
+          console.log(position);
+          device.queue.writeBuffer(
+            buffer,
+            i * planetBufferSize + positionOffset * 4,
+            position
+          );
+
+          const velocity = new Float32Array(2);
+          velocity[0] = Math.random() * 0.01 - 0.005;
+          velocity[1] = Math.random() * 0.01 - 0.005;
+          device.queue.writeBuffer(
+            buffer,
+            i * planetBufferSize + velocityOffset * 4,
+            velocity
+          );
+
+          const mass = new Float32Array(1);
+          mass[0] = Math.random() * 0.1 + 0.1;
+          device.queue.writeBuffer(
+            buffer,
+            i * planetBufferSize + massOffset * 4,
+            mass
+          );
+        }
+
+        const bindGroup = device.createBindGroup({
+          layout: pipeline.getBindGroupLayout(0),
+          entries: [
+            {
+              binding: 0,
+              resource: {
+                buffer: buffer,
+              },
+            },
+          ],
+        });
+
+        function render() {
+          renderPassDescriptor.colorAttachments[0].view = context
+            .getCurrentTexture()
+            .createView();
+
+          const encoder = device.createCommandEncoder({
+            label: "our encoder",
+          });
+
+          const pass = encoder.beginRenderPass(renderPassDescriptor);
+          pass.setBindGroup(0, bindGroup);
+          pass.setPipeline(pipeline);
+          pass.draw(6, numPlanets);
+          pass.end();
+
+          const commandBuffer = encoder.finish();
+          device.queue.submit([commandBuffer]);
+        }
+
+        render();
+      }
+
+      function fail(msg) {
+        alert(msg);
+      }
+
+      main();
+    </script>
+  </body>
+</html>
