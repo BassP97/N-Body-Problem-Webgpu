@@ -1,196 +1,116 @@
-<!DOCTYPE html>
-
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebGPU</title>
+    <title>WebGPU N-Body Simulation</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        background: #1e1e1e;
+        color: white;
+      }
+      .canvas-container {
+        position: relative;
+        width: 80vw;
+        aspect-ratio: 16/9;
+        margin: 20px 0;
+      }
+      #canvas,
+      #overlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #overlay {
+        pointer-events: none;
+      }
+      .settings-shelf {
+        width: 80vw;
+        padding: 20px;
+        background: #2d2d2d;
+        border-radius: 8px;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .setting-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+    </style>
   </head>
   <body>
-    <canvas width="2000" , height="1200"></canvas>
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="settings-shelf">
+      <div class="setting-group">
+        <label>
+          Number of Planets:
+          <input type="range" min="2" max="10000" value="10" id="planetCount" />
+          <span id="planetCountValue">10</span>
+        </label>
+      </div>
+      <div class="setting-group">
+        <label>
+          Gravity Strength:
+          <input
+            type="range"
+            min="0"
+            max="0.01"
+            step="0.0001"
+            value="0.001"
+            id="gravity"
+          />
+          <span id="gravityValue">0.001</span>
+        </label>
+      </div>
+      <div class="setting-group">
+        <label>
+          Time Step:
+          <input
+            type="range"
+            min="0.00001"
+            max="0.01"
+            step="0.0001"
+            value="0.01"
+            id="timeStep"
+          />
+          <span id="timeStepValue">0.01</span>
+        </label>
+      </div>
+    </div>
+    <pre id="info"></pre>
+    <script type="module" src="main.js"></script>
     <script>
-      async function main() {
-        const adapter = await navigator.gpu?.requestAdapter();
-        const device = await adapter?.requestDevice();
-        if (!device) {
-          fail("need a browser that supports WebGPU");
-          return;
-        }
-        const canvas = document.querySelector("canvas");
-        const context = canvas.getContext("webgpu");
-        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
-        context.configure({
-          device,
-          format: presentationFormat,
-        });
+      const planetCountInput = document.getElementById("planetCount");
+      const planetCountDisplay = document.getElementById("planetCountValue");
+      const gravityInput = document.getElementById("gravity");
+      const gravityDisplay = document.getElementById("gravityValue");
+      const timeStepInput = document.getElementById("timeStep");
+      const timeStepDisplay = document.getElementById("timeStepValue");
 
-        const module = device.createShaderModule({
-          label: "nbody render shader",
-          code: `
-      struct PlanetData {
-        position: vec2f,
-        velocity: vec2f,
-        mass: f32,
-      }
-
-      @group(0) @binding(0) var<storage, read> planets: array<PlanetData>;
-
-      struct VertexOutput {
-        @builtin(position) position: vec4f,
-        @location(0) uv: vec2f,
-        @location(1) mass: f32,
-      }
-
-      @vertex fn vs(
-        @builtin(vertex_index) vertexIndex: u32,
-        @builtin(instance_index) instanceIndex: u32,
-      ) -> VertexOutput {
-        let corners = array(
-            vec2f(-1.0, -1.0),  // Bottom left
-            vec2f( 1.0, -1.0),  // Bottom right
-            vec2f(-1.0,  1.0),  // Top left
-            vec2f( 1.0, -1.0),  // Bottom right
-            vec2f( 1.0,  1.0),  // Top right
-            vec2f(-1.0,  1.0),  // Top left
-        );
-
-        let planet = planets[instanceIndex];
-        let size = 0.01;
-        let pos = corners[vertexIndex] * size + planet.position;
-
-        var output: VertexOutput;
-        output.position = vec4f(pos, 0.0, 1.0);
-        output.uv = corners[vertexIndex];
-        output.mass = planet.mass;
-        return output;
-      }
-
-      @fragment fn fs(input: VertexOutput) -> @location(0) vec4f {
-        let dist = length(input.uv);
-
-        // Discard pixels outside the circle
-        if (dist > 1.0) {
-          discard;
-        }
-
-        // Color based on mass!
-
-        let color = vec3f(1.0, 0.7, 0.3) * input.mass;
-        let intensity = 1.0 - dist; // Fade towards edges
-
-        return vec4f(color * intensity, 1.0);
-      }
-      `,
-        });
-
-        const pipeline = device.createRenderPipeline({
-          label: "planet renderer",
-          layout: "auto",
-          vertex: {
-            module,
-            entryPoint: "vs",
-          },
-          fragment: {
-            module,
-            entryPoint: "fs",
-            targets: [{ format: presentationFormat }],
-          },
-        });
-
-        const renderPassDescriptor = {
-          label: "canvas renderPass",
-          colorAttachments: [
-            {
-              // view: <- to be filled out when we render
-              clearValue: [0.3, 0.3, 0.3, 1],
-              loadOp: "clear",
-              storeOp: "store",
-            },
-          ],
-        };
-
-        // need to pad 4 extra bytes at the end. Alignment!
-        const planetBufferSize = 4 * 2 + 4 * 2 + 4 * 2;
-        const positionOffset = 0; // 0 bytes
-        const velocityOffset = 2 * 4; // 8 bytes
-        const massOffset = 4 * 4; // 16 bytes
-
-        const numPlanets = 100;
-        const planetValues = new Float32Array(planetBufferSize / 4);
-
-        const buffer = device.createBuffer({
-          label: "planet buffer",
-          size: planetBufferSize * numPlanets,
-          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE,
-        });
-
-        for (let i = 0; i < numPlanets; i++) {
-          const position = new Float32Array(2);
-          position[0] = Math.random() * 2 - 1;
-          position[1] = Math.random() * 2 - 1;
-          console.log(position);
-          device.queue.writeBuffer(
-            buffer,
-            i * planetBufferSize + positionOffset, // Now correct byte offset
-            position
-          );
-
-          const velocity = new Float32Array(2);
-          velocity[0] = Math.random() * 0.1 - 0.005;
-          velocity[1] = Math.random() * 0.1 - 0.005;
-          device.queue.writeBuffer(
-            buffer,
-            i * planetBufferSize + velocityOffset, // Now correct byte offset
-            velocity
-          );
-
-          const mass = new Float32Array(1);
-          mass[0] = Math.abs(Math.random()) * 3;
-          device.queue.writeBuffer(
-            buffer,
-            i * planetBufferSize + massOffset, // Now correct byte offset
-            mass
-          );
-        }
-
-        const bindGroup = device.createBindGroup({
-          layout: pipeline.getBindGroupLayout(0),
-          entries: [
-            {
-              binding: 0,
-              resource: {
-                buffer: buffer,
-              },
-            },
-          ],
-        });
-
-        function render() {
-          renderPassDescriptor.colorAttachments[0].view = context
-            .getCurrentTexture()
-            .createView();
-
-          const encoder = device.createCommandEncoder({
-            label: "our encoder",
-          });
-
-          const pass = encoder.beginRenderPass(renderPassDescriptor);
-          pass.setBindGroup(0, bindGroup);
-          pass.setPipeline(pipeline);
-          pass.draw(6, numPlanets);
-          pass.end();
-
-          const commandBuffer = encoder.finish();
-          device.queue.submit([commandBuffer]);
-        }
-
-        render();
-      }
-
-      function fail(msg) {
-        alert(msg);
-      }
-
-      main();
+      planetCountInput.addEventListener("input", (e) => {
+        planetCountDisplay.textContent = e.target.value;
+      });
+      gravityInput.addEventListener("input", (e) => {
+        gravityDisplay.textContent = e.target.value;
+      });
+      timeStepInput.addEventListener("input", (e) => {
+        timeStepDisplay.textContent = e.target.value;
+      });
     </script>
   </body>
 </html>
