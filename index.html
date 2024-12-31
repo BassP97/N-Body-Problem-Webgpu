@@ -33,7 +33,7 @@
       }
 
       @group(0) @binding(0) var<storage, read> planets: array<PlanetData>;
-      
+
       struct VertexOutput {
         @builtin(position) position: vec4f,
         @location(0) uv: vec2f,
@@ -52,11 +52,11 @@
             vec2f( 1.0,  1.0),  // Top right
             vec2f(-1.0,  1.0),  // Top left
         );
-        
+
         let planet = planets[instanceIndex];
-        let size = 0.02;
+        let size = 0.01;
         let pos = corners[vertexIndex] * size + planet.position;
-        
+
         var output: VertexOutput;
         output.position = vec4f(pos, 0.0, 1.0);
         output.uv = corners[vertexIndex];
@@ -66,19 +66,20 @@
 
       @fragment fn fs(input: VertexOutput) -> @location(0) vec4f {
         let dist = length(input.uv);
-        
+
         // Discard pixels outside the circle
         if (dist > 1.0) {
           discard;
         }
-        
+
         // Color based on mass!
-        let color = vec3f(1.0, 0.7, 0.3); // Golden color
+
+        let color = vec3f(1.0, 0.7, 0.3) * input.mass;
         let intensity = 1.0 - dist; // Fade towards edges
-        
+
         return vec4f(color * intensity, 1.0);
       }
-              `,
+      `,
         });
 
         const pipeline = device.createRenderPipeline({
@@ -107,10 +108,11 @@
           ],
         };
 
-        const planetBufferSize = 4 * 2 + 4 * 2 + 4;
-        const positionOffset = 0;
-        const velocityOffset = 2;
-        const massOffset = 4;
+        // need to pad 4 extra bytes at the end. Alignment!
+        const planetBufferSize = 4 * 2 + 4 * 2 + 4 * 2;
+        const positionOffset = 0; // 0 bytes
+        const velocityOffset = 2 * 4; // 8 bytes
+        const massOffset = 4 * 4; // 16 bytes
 
         const numPlanets = 100;
         const planetValues = new Float32Array(planetBufferSize / 4);
@@ -128,24 +130,24 @@
           console.log(position);
           device.queue.writeBuffer(
             buffer,
-            i * planetBufferSize + positionOffset * 4,
+            i * planetBufferSize + positionOffset, // Now correct byte offset
             position
           );
 
           const velocity = new Float32Array(2);
-          velocity[0] = Math.random() * 0.01 - 0.005;
-          velocity[1] = Math.random() * 0.01 - 0.005;
+          velocity[0] = Math.random() * 0.1 - 0.005;
+          velocity[1] = Math.random() * 0.1 - 0.005;
           device.queue.writeBuffer(
             buffer,
-            i * planetBufferSize + velocityOffset * 4,
+            i * planetBufferSize + velocityOffset, // Now correct byte offset
             velocity
           );
 
           const mass = new Float32Array(1);
-          mass[0] = Math.random() * 0.1 + 0.1;
+          mass[0] = Math.abs(Math.random()) * 3;
           device.queue.writeBuffer(
             buffer,
-            i * planetBufferSize + massOffset * 4,
+            i * planetBufferSize + massOffset, // Now correct byte offset
             mass
           );
         }
