@@ -26,7 +26,7 @@ struct VertexOutput {
   );
 
   let planet = planets[instanceIndex];
-  let size = min(max(15.0 / f32(arrayLength(&planets)), 0.0075), 0.025); 
+  let size = min(max(15.0 / f32(arrayLength(&planets)), 0.005), 0.025); 
 
   let aspectRatio = 16.0 / 9.0;
   let correctedCorner = vec2f(corners[vertexIndex].x / aspectRatio, corners[vertexIndex].y);
